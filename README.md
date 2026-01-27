@@ -8,24 +8,22 @@ Clone TripoSG, add these files,
 Get it running in commandline, then run `uv run python app.py` to start the WebUI.
 
 ## Get TripoSG running
-`## TripoSG: High-Fidelity 3D Shape Synthesis using Large-Scale Rectified Flow Models
-mkdir -p ~/code/
-cd code
-git clone https://github.com/erikallankincaid/
-cp app.py pyproject.toml requirement.txt ~/code/TripoSG/
-git clone https://github.com/VAST-AI-Research/TripoSG.git
-cd TripoSG
-uv init
-uv venv
-source .venv/bin/activate
-uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-uv pip install --no-build-isolation diso
-uv add -r requirements.txt
-uv pip install numpy
-uv pip install huggingface-hub`
-## Remove numpy as it is already installed.
-`sed -i 's/numpy/#numpy/' requirements.txt
-uv pip install -r requirements.txt`
+## TripoSG: High-Fidelity 3D Shape Synthesis using Large-Scale `Rectified Flow Models`
+`mkdir -p ~/code/`
+`cd code`
+`git clone https://github.com/erikallankincaid/`
+`cp app.py pyproject.toml requirement.txt ~/code/TripoSG/`
+`git clone https://github.com/VAST-AI-Research/TripoSG.git`
+`cd TripoSG`
+`uv init`
+`uv venv`
+`source .venv/bin/activate`
+`uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124`
+`uv pip install --no-build-isolation diso`
+`uv add -r requirements.txt`
+`uv pip install numpy`
+`uv pip install huggingface-hub`
+`uv pip install -r requirements.txt`
 ## Add an image to try.
 `scp ./fist.jpg ops@192.168.1.43:/home/ops/code/TripoSG/`
 ## Run the generation model.
