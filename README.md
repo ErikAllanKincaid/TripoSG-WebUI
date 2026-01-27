@@ -35,19 +35,18 @@ uv pip install -r requirements.txt
 `cd /home/$USER/code/TripoSG/ && uv run python app.py`
 
 ## Make a service
-`sudo cp triposg-webui.service /etc/systemd/system/`
-## 
-Copy service file to the service directory.
+`sudo cp triposg-webui.service /etc/systemd/system/` 
+#### Copy service file to the service directory.
 `sudo cp /home/$USER/code/TripoSG/triposg-webui.service  /etc/systemd/system/`
-Reload systemd: Notify the service manager of the new file.
+#### Reload systemd: Notify the service manager of the new file.
 `sudo systemctl daemon-reload`
-Start the service: Manually start the service for the first time.
+#### Start the service: Manually start the service for the first time.
 `sudo systemctl start webui.service`
-Check the service status: Verify that it is running correctly.
+#### Check the service status: Verify that it is running correctly.
 `sudo systemctl status webui.service`
-Enable the service (optional): Configure the service to start automatically every time your system boots.
+#### Enable the service (optional): Configure the service to start automatically every time your system boots.
 `sudo systemctl enable webui.service`
-## Troubleshooting
+### Troubleshooting
 If the service fails to start, use journalctl to view the logs and identify the error: 
 `sudo journalctl -u webui.service -f`
 
