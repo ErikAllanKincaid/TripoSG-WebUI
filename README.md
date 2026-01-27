@@ -2,7 +2,7 @@
 ### Enhancement to https://github.com/VAST-AI-Research/TripoSG to add a WebUI.
 
 Clone this repo to get the puthon script for the WebUI.
-
+### TLDR
 Clone TripoSG, add these files,
 `cp app.py pyproject.toml requirement.txt ~/code/TripoSG/`
 Get it running in commandline, then run `uv run python app.py` to start the WebUI.
