@@ -29,10 +29,9 @@ uv pip install -r requirements.txt
 ## Add an image to try.
 `scp ./fist.jpg ops@192.168.1.43:/home/ops/code/TripoSG/`
 ## Run the generation model.
-`IMAGE = fist.jpg
-uv run python -m scripts.inference_triposg --image-input /home/erik/code/TripoSG/$IMAGE'
+`IMAGE=fist.jpg ; uv run python -m scripts.inference_triposg --image-input /home/erik/code/TripoSG/$IMAGE`
 
-## Start th WebUI
+## Start the WebUI
 `cd /home/$USER/code/TripoSG/ && uv run python app.py`
 
 ## Make a service
