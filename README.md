@@ -12,9 +12,9 @@ Get it running in commandline, then run `uv run python app.py` to start the WebU
 ```bash
 mkdir -p ~/code/
 cd code
-git clone https://github.com/erikallankincaid/
-cp app.py pyproject.toml requirement.txt ~/code/TripoSG/
 git clone https://github.com/VAST-AI-Research/TripoSG.git
+git clone https://github.com/ErikAllanKincaid/TripoSG-WebUI.git
+cp TripoSG-WebUI/app.py TripoSG/ TripoSG-WebUI/pyproject.toml TripoSG-WebUI/requirement.txt ~/code/TripoSG/
 cd TripoSG
 uv init
 uv venv
