@@ -1,0 +1,18 @@
+[Unit]
+## Add to /etc/systemd/system/
+Description=Web UI TripoSG Service
+After=network.target
+
+[Service]
+User=noisebridge
+Group=noisebridge # Optional, often the same as your username
+WorkingDirectory=/home/noisebridge/code/TripoSG/
+ExecStart=<path/to/your/python/executable> <path/to/your/script.py>
+# Example for ExecStart: /usr/bin/python3 /home/noisebridge/code/TripoSG/app.py
+
+Restart=on-failure
+# Optional: Give the service a little time to stop gracefully.
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
