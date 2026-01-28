@@ -59,6 +59,6 @@ If the service fails to start, use journalctl to view the logs and identify the 
 `sudo journalctl -u webui.service -f`
 
 ## Problems TODO
-- The model produces a 3D mesh that is a 3D shape, but the polygon shape sides have no dimension, so when put in a slicer for printing it can not slice.
-	- The solution is to use Blender to create dimension, but this defeats the purpose of low barrier of entry.
-- The GPU does not release all the RAM once the model has run. 
+- ~~The model produces a 3D mesh that is a 3D shape, but the polygon shape sides have no dimension, so when put in a slicer for printing it can not slice.~~ FIXED
+	- ~~The solution is to use Blender to create dimension, but this defeats the purpose of low barrier of entry.
+- The GPU does not release all the RAM once the model has run.~~ FIXED
