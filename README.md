@@ -5,8 +5,8 @@ Bring down the barrier of entry into 3D printing without having to learn Blender
 
 
 ## TLDR
-Clone TripoSG, add these files,
-Clone this repo to get the puthon script for the WebUI.
+Clone TripoSG.
+Clone this repo to get the python script for the WebUI.
 `cp app.py pyproject.toml requirement.txt ~/code/TripoSG/`
 Get it running in commandline, then run `uv run python app.py` to start the WebUI.
 
