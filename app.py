@@ -1,3 +1,4 @@
+import gc
 import os
 import sys
 import uuid
@@ -19,26 +20,44 @@ app = Flask(__name__)
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Model weight directories
-TRIPOSG_DIR = os.path.join(os.path.dirname(__file__), "pretrained_weights", "TripoSG")
-RMBG_DIR = os.path.join(os.path.dirname(__file__), "pretrained_weights", "RMBG-1.4")
+# Global model refs — loaded once
+pipe = None
+rmbg_net = None
 
 
-def load_models():
-    """Load models to GPU. Returns (pipe, rmbg_net)."""
-    snapshot_download(repo_id="VAST-AI/TripoSG", local_dir=TRIPOSG_DIR)
-    snapshot_download(repo_id="briaai/RMBG-1.4", local_dir=RMBG_DIR)
-    rmbg_net = BriaRMBG.from_pretrained(RMBG_DIR).to("cuda")
-    rmbg_net.eval()
-    pipe = TripoSGPipeline.from_pretrained(TRIPOSG_DIR).to("cuda", torch.float16)
-    return pipe, rmbg_net
+def clear_gpu_memory():
+    """Clear CUDA cache to free GPU memory after generation."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
 
 
 def unload_models():
-    """Free GPU memory."""
-    import gc
-    torch.cuda.empty_cache()
-    gc.collect()
+    """Fully unload models from GPU to free all VRAM."""
+    global pipe, rmbg_net
+    if pipe is not None:
+        del pipe
+        pipe = None
+    if rmbg_net is not None:
+        del rmbg_net
+        rmbg_net = None
+    clear_gpu_memory()
+
+
+def load_models():
+    global pipe, rmbg_net
+    if pipe is not None:
+        return
+    device = "cuda"
+    dtype = torch.float16
+    triposg_dir = os.path.join(os.path.dirname(__file__), "pretrained_weights", "TripoSG")
+    rmbg_dir = os.path.join(os.path.dirname(__file__), "pretrained_weights", "RMBG-1.4")
+    snapshot_download(repo_id="VAST-AI/TripoSG", local_dir=triposg_dir)
+    snapshot_download(repo_id="briaai/RMBG-1.4", local_dir=rmbg_dir)
+    rmbg_net = BriaRMBG.from_pretrained(rmbg_dir).to(device)
+    rmbg_net.eval()
+    pipe = TripoSGPipeline.from_pretrained(triposg_dir).to(device, dtype)
 
 
 def simplify_mesh(mesh, n_faces):
@@ -52,9 +71,25 @@ def simplify_mesh(mesh, n_faces):
     return mesh
 
 
+def solidify_mesh(mesh, pitch=0.01):
+    """Convert surface mesh to solid via voxelization for 3D printing.
+
+    Args:
+        mesh: trimesh.Trimesh input (can be zero-thickness surface)
+        pitch: voxel size in mesh units (smaller = more detail, slower)
+
+    Returns:
+        Watertight solid trimesh suitable for slicing
+    """
+    voxel = mesh.voxelized(pitch=pitch)
+    voxel = voxel.fill()
+    solid = voxel.marching_cubes
+    return solid
+
+
 @torch.no_grad()
 def generate_mesh(image_pil, seed=42, steps=50, guidance=7.0, faces=-1):
-    pipe, rmbg_net = load_models()
+    load_models()
     # prepare_image expects a file path, so save PIL image to temp file
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     image_pil.save(tmp.name)
@@ -66,11 +101,14 @@ def generate_mesh(image_pil, seed=42, steps=50, guidance=7.0, faces=-1):
         num_inference_steps=steps,
         guidance_scale=guidance,
     ).samples[0]
-    mesh = trimesh.Trimesh(outputs[0].astype(np.float32), np.ascontiguousarray(outputs[1]))
+    # Convert to numpy immediately and free GPU tensors
+    verts = outputs[0].cpu().numpy().astype(np.float32) if torch.is_tensor(outputs[0]) else outputs[0].astype(np.float32)
+    faces_arr = outputs[1].cpu().numpy() if torch.is_tensor(outputs[1]) else np.ascontiguousarray(outputs[1])
+    del outputs, img
+    clear_gpu_memory()
+    mesh = trimesh.Trimesh(verts, faces_arr)
     if faces > 0:
         mesh = simplify_mesh(mesh, faces)
-    del pipe, rmbg_net
-    unload_models()
     return mesh
 
 
@@ -87,7 +125,9 @@ HTML = """
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem}
-h1{margin-bottom:1.5rem;color:#fff}
+h1{color:#fff}
+.title-row{display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1.5rem}
+.title-row img{width:100px;height:100px;object-fit:contain}
 .container{display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;width:100%;max-width:1200px}
 .panel{background:#16213e;border-radius:12px;padding:1.5rem;flex:1;min-width:320px}
 .panel h2{margin-bottom:1rem;font-size:1.1rem;color:#a0c4ff}
@@ -109,7 +149,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
-<h1>TripoSG &mdash; Image to 3D</h1>
+<div class="title-row">
+  <a href="https://www.noisebridge.net/"><img src="/assets/nb_logo_trans.png" alt="Noisebridge"></a>
+  <h1>TripoSG &mdash; Image to 3D</h1>
+  <a href="https://donate.noisebridge.net/"><img src="/assets/nbdonate_2.png" alt="Donate"></a>
+</div>
 <div class="container">
   <div class="panel">
     <h2>Input</h2>
@@ -170,25 +214,32 @@ function init(){
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}
 
 window.loadGLB = function(url){
+  console.log('Loading GLB:', url);
   if(currentModel) scene.remove(currentModel);
-  new GLTFLoader().load(url, gltf=>{
-    currentModel = gltf.scene;
-    const box = new THREE.Box3().setFromObject(currentModel);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3()).length();
-    currentModel.position.sub(center);
-    const scale = 2.0 / size;
-    currentModel.scale.setScalar(scale);
-    currentModel.traverse(c=>{
-      if(c.isMesh){
-        c.material = new THREE.MeshStandardMaterial({color:0x8899aa, roughness:0.5, metalness:0.1});
-        c.material.side = THREE.DoubleSide;
-      }
-    });
-    scene.add(currentModel);
-    camera.position.set(0, 1, 3);
-    controls.reset();
-  });
+  new GLTFLoader().load(url,
+    gltf=>{
+      console.log('GLB loaded successfully');
+      currentModel = gltf.scene;
+      const box = new THREE.Box3().setFromObject(currentModel);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3()).length();
+      console.log('Model size:', size);
+      currentModel.position.sub(center);
+      const scale = 2.0 / size;
+      currentModel.scale.setScalar(scale);
+      currentModel.traverse(c=>{
+        if(c.isMesh){
+          c.material = new THREE.MeshStandardMaterial({color:0x8899aa, roughness:0.5, metalness:0.1});
+          c.material.side = THREE.DoubleSide;
+        }
+      });
+      scene.add(currentModel);
+      camera.position.set(0, 1, 3);
+      controls.reset();
+    },
+    progress => console.log('Loading progress:', (progress.loaded/progress.total*100).toFixed(1) + '%'),
+    error => console.error('GLB load error:', error)
+  );
 };
 
 init();
@@ -235,15 +286,19 @@ function generate(){
   fd.append('seed', document.getElementById('seed').value);
   fd.append('faces', document.getElementById('faces').value);
   fetch('/generate', {method:'POST', body:fd})
-    .then(r => r.json())
+    .then(r => {
+      console.log('Response status:', r.status);
+      return r.json();
+    })
     .then(data => {
+      console.log('Response data:', data);
       if(data.error){status.textContent = 'Error: '+data.error; genBtn.disabled=false; return;}
       status.textContent = 'Done!';
       genBtn.disabled = false;
       downloads.innerHTML = `<a href="${data.glb}" download>Download GLB</a><a href="${data.stl}" download>Download STL</a>`;
       window.loadGLB(data.glb);
     })
-    .catch(err => {status.textContent = 'Error: '+err; genBtn.disabled=false;});
+    .catch(err => {console.error('Fetch error:', err); status.textContent = 'Error: '+err; genBtn.disabled=false;});
 }
 window.generate = generate;
 </script>
@@ -275,18 +330,39 @@ def generate_route():
         glb_path = os.path.join(OUTPUT_DIR, f"{job_id}.glb")
         stl_path = os.path.join(OUTPUT_DIR, f"{job_id}.stl")
         mesh.export(glb_path)
-        mesh.export(stl_path)
+
+        # Solidify mesh for 3D printing (fallback to original if fails)
+        try:
+            solid_mesh = solidify_mesh(mesh)
+            solid_mesh.export(stl_path)
+            print(f"Solidified STL saved: {stl_path}")
+        except Exception as e:
+            print(f"Solidify failed, using original mesh for STL: {e}")
+            mesh.export(stl_path)
+
+        # Fully unload models to release GPU memory
+        unload_models()
+        print(f"Models unloaded, GPU memory released")
 
         return jsonify(glb=f"/outputs/{job_id}.glb", stl=f"/outputs/{job_id}.stl")
     except Exception as e:
         import traceback
         traceback.print_exc()
+        unload_models()
         return jsonify(error=str(e)), 500
 
 
 @app.route("/outputs/<path:filename>")
 def serve_output(filename):
     return send_from_directory(OUTPUT_DIR, filename)
+
+
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    return send_from_directory(APP_DIR, filename)
 
 
 if __name__ == "__main__":
