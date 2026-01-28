@@ -150,9 +150,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </head>
 <body>
 <div class="title-row">
-  <a href="https://www.noisebridge.net/"><img src="/assets/nb_logo_trans.png" alt="Noisebridge"></a>
+  <a href="https://github.com/ErikAllanKincaid/"><img src="/assets/3d-printing-logo.png" alt="3D print maker."></a>
   <h1>TripoSG &mdash; Image to 3D</h1>
-  <a href="https://donate.noisebridge.net/"><img src="/assets/nbdonate_2.png" alt="Donate"></a>
+  <a href="https://github.com/ErikAllanKincaid/"><img src="/assets/eak.png" alt="Donate"></a>
 </div>
 <div class="container">
   <div class="panel">
