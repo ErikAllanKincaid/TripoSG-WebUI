@@ -38,7 +38,7 @@ uv pip install -r requirements.txt
 `cd /home/$USER/code/TripoSG/ && uv run python app.py`
 
 ## Screenshot
-![[Screenshot_WebUI.png]]
+![Screenshot_WebUI](Screenshot_WebUI.png)
 
 
 
