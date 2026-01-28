@@ -1,9 +1,12 @@
 # TripoSG-WebUI
 ### Enhancement to https://github.com/VAST-AI-Research/TripoSG to add a WebUI.
 
-Clone this repo to get the puthon script for the WebUI.
+Bring down the barrier of entry into 3D printing without having to learn Blender or CAD. Using this 
+
+
 ### TLDR
 Clone TripoSG, add these files,
+Clone this repo to get the puthon script for the WebUI.
 `cp app.py pyproject.toml requirement.txt ~/code/TripoSG/`
 Get it running in commandline, then run `uv run python app.py` to start the WebUI.
 
@@ -27,12 +30,17 @@ uv pip install huggingface-hub
 uv pip install -r requirements.txt
 ```
 ## Add an image to try.
-`scp ./fist.jpg ops@192.168.1.43:/home/ops/code/TripoSG/`
+`scp ./mouse.jpg ops@192.168.1.43:/home/ops/code/TripoSG/`
 ## Run the generation model.
-`IMAGE=fist.jpg ; uv run python -m scripts.inference_triposg --image-input /home/erik/code/TripoSG/$IMAGE`
+`IMAGE=mouse.jpg ; uv run python -m scripts.inference_triposg --image-input /home/erik/code/TripoSG/$IMAGE`
 
 ## Start the WebUI
 `cd /home/$USER/code/TripoSG/ && uv run python app.py`
+
+## Screenshot
+![[Screenshot_WebUI.png]]
+
+
 
 ## Make a service
 `sudo cp triposg-webui.service /etc/systemd/system/` 
@@ -50,3 +58,7 @@ uv pip install -r requirements.txt
 If the service fails to start, use journalctl to view the logs and identify the error: 
 `sudo journalctl -u webui.service -f`
 
+## Problems TODO
+- The model produces a 3D mesh that is a 3D shape, but the polygon shape sides have no dimension, so when put in a slicer for printing it can not slice.
+	- The solution is to use Blender to create dimension, but this defeats the purpose of low barrier of entry.
+- The GPU does not release all the RAM once the model has run. 
