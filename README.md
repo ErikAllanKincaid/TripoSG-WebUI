@@ -17,7 +17,7 @@ mkdir -p ~/code/
 cd code
 git clone https://github.com/VAST-AI-Research/TripoSG.git
 git clone https://github.com/ErikAllanKincaid/TripoSG-WebUI.git
-cp TripoSG-WebUI/app.py TripoSG/ TripoSG-WebUI/pyproject.toml TripoSG-WebUI/requirement.txt ~/code/TripoSG/
+cp TripoSG-WebUI/app.py TripoSG-WebUI/pyproject.toml TripoSG-WebUI/requirement.txt ~/code/TripoSG/
 cd TripoSG
 uv init
 uv venv
