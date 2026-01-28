@@ -4,14 +4,14 @@
 Bring down the barrier of entry into 3D printing without having to learn Blender or CAD. Using this 
 
 
-### TLDR
+## TLDR
 Clone TripoSG, add these files,
 Clone this repo to get the puthon script for the WebUI.
 `cp app.py pyproject.toml requirement.txt ~/code/TripoSG/`
 Get it running in commandline, then run `uv run python app.py` to start the WebUI.
 
 ## Get TripoSG running
-## TripoSG: High-Fidelity 3D Shape Synthesis using Large-Scale Rectified Flow Models
+### TripoSG: High-Fidelity 3D Shape Synthesis using Large-Scale Rectified Flow Models
 ```bash
 mkdir -p ~/code/
 cd code
@@ -29,15 +29,15 @@ uv pip install numpy
 uv pip install huggingface-hub
 uv pip install -r requirements.txt
 ```
-## Add an image to try.
+### Add an image to try.
 `scp ./mouse.jpg ops@192.168.1.43:/home/ops/code/TripoSG/`
-## Run the generation model.
+### Run the generation model.
 `IMAGE=mouse.jpg ; uv run python -m scripts.inference_triposg --image-input /home/erik/code/TripoSG/$IMAGE`
 
-## Start the WebUI
+### Start the WebUI
 `cd /home/$USER/code/TripoSG/ && uv run python app.py`
 
-## Screenshot
+### Screenshot
 ![Screenshot_WebUI](Screenshot_WebUI.png)
 
 
