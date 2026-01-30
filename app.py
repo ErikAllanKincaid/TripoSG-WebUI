@@ -71,12 +71,13 @@ def simplify_mesh(mesh, n_faces):
     return mesh
 
 
-def solidify_mesh(mesh, pitch=0.01):
+def solidify_mesh(mesh, pitch=0.01, smooth=0):
     """Convert surface mesh to solid via voxelization for 3D printing.
 
     Args:
         mesh: trimesh.Trimesh input (can be zero-thickness surface)
         pitch: voxel size in mesh units (smaller = more detail, slower)
+        smooth: number of Laplacian smoothing passes (0 = none)
 
     Returns:
         Watertight solid trimesh suitable for slicing
@@ -84,6 +85,8 @@ def solidify_mesh(mesh, pitch=0.01):
     voxel = mesh.voxelized(pitch=pitch)
     voxel = voxel.fill()
     solid = voxel.marching_cubes
+    if smooth > 0:
+        trimesh.smoothing.filter_laplacian(solid, iterations=smooth)
     return solid
 
 
@@ -146,6 +149,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .params{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.8rem}
 .params label{font-size:.85rem;color:#aaa}
 .params input{width:80px;padding:.3rem;border-radius:4px;border:1px solid #333;background:#0a0a1a;color:#fff}
+.advanced-toggle{color:#a0c4ff;cursor:pointer;font-size:.9rem;margin-top:1rem;user-select:none}
+.advanced-toggle:hover{text-decoration:underline}
+.advanced-section{display:none;margin-top:.8rem;padding:.8rem;background:#0f1a30;border-radius:6px}
+.advanced-section.open{display:block}
+.advanced-section .params{margin-top:0}
+.advanced-section label input[type="checkbox"]{margin-right:.4rem}
 </style>
 </head>
 <body>
@@ -166,6 +175,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
       <div><label>Guidance</label><br><input type="number" id="guidance" value="7.0" step="0.5" min="1"></div>
       <div><label>Seed</label><br><input type="number" id="seed" value="42"></div>
       <div><label>Max faces</label><br><input type="number" id="faces" value="-1" min="-1"></div>
+      <div style="display:flex;align-items:flex-end"><a href="/assets/TripoSG-WebUI_Parameters-explained.txt" target="_blank" style="color:#a0c4ff;font-size:.85rem">Parameter Help</a></div>
+    </div>
+    <div class="advanced-toggle" onclick="toggleAdvanced()"><span id="adv-arrow">&#9654;</span> Solidify Options (STL)</div>
+    <div class="advanced-section" id="advanced-section">
+      <div class="params">
+        <div><label><input type="checkbox" id="solidify-enabled" checked>Enabled</label></div>
+        <div><label>Pitch</label><br><input type="number" id="solidify-pitch" value="0.01" step="0.001" min="0.002" max="0.05"></div>
+        <div><label>Smooth</label><br><input type="number" id="solidify-smooth" value="0" min="0" max="10"></div>
+      </div>
     </div>
     <button id="gen-btn" disabled onclick="generate()">Generate 3D Model</button>
     <div id="status"></div>
@@ -267,6 +285,14 @@ function showPreview(file){
 }
 
 fileInput.addEventListener('change', e => {if(e.target.files[0]) showPreview(e.target.files[0])});
+
+function toggleAdvanced(){
+  const section = document.getElementById('advanced-section');
+  const arrow = document.getElementById('adv-arrow');
+  section.classList.toggle('open');
+  arrow.innerHTML = section.classList.contains('open') ? '&#9660;' : '&#9654;';
+}
+window.toggleAdvanced = toggleAdvanced;
 dropZone.addEventListener('dragover', e => {e.preventDefault(); dropZone.classList.add('dragover')});
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
@@ -285,6 +311,9 @@ function generate(){
   fd.append('guidance', document.getElementById('guidance').value);
   fd.append('seed', document.getElementById('seed').value);
   fd.append('faces', document.getElementById('faces').value);
+  fd.append('solidify_enabled', document.getElementById('solidify-enabled').checked);
+  fd.append('solidify_pitch', document.getElementById('solidify-pitch').value);
+  fd.append('solidify_smooth', document.getElementById('solidify-smooth').value);
   fetch('/generate', {method:'POST', body:fd})
     .then(r => {
       console.log('Response status:', r.status);
@@ -323,6 +352,9 @@ def generate_route():
         guidance = float(request.form.get("guidance", 7.0))
         seed = int(request.form.get("seed", 42))
         faces = int(request.form.get("faces", -1))
+        solidify_enabled = request.form.get("solidify_enabled", "true") == "true"
+        solidify_pitch = float(request.form.get("solidify_pitch", 0.01))
+        solidify_smooth = int(request.form.get("solidify_smooth", 0))
 
         mesh = generate_mesh(img, seed=seed, steps=steps, guidance=guidance, faces=faces)
 
@@ -331,14 +363,18 @@ def generate_route():
         stl_path = os.path.join(OUTPUT_DIR, f"{job_id}.stl")
         mesh.export(glb_path)
 
-        # Solidify mesh for 3D printing (fallback to original if fails)
-        try:
-            solid_mesh = solidify_mesh(mesh)
-            solid_mesh.export(stl_path)
-            print(f"Solidified STL saved: {stl_path}")
-        except Exception as e:
-            print(f"Solidify failed, using original mesh for STL: {e}")
+        # Solidify mesh for 3D printing (if enabled)
+        if solidify_enabled:
+            try:
+                solid_mesh = solidify_mesh(mesh, pitch=solidify_pitch, smooth=solidify_smooth)
+                solid_mesh.export(stl_path)
+                print(f"Solidified STL saved: {stl_path} (pitch={solidify_pitch}, smooth={solidify_smooth})")
+            except Exception as e:
+                print(f"Solidify failed, using original mesh for STL: {e}")
+                mesh.export(stl_path)
+        else:
             mesh.export(stl_path)
+            print(f"STL saved without solidify: {stl_path}")
 
         # Fully unload models to release GPU memory
         unload_models()
