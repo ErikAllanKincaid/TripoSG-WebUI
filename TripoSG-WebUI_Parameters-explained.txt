@@ -1,0 +1,91 @@
+## ################################################
+## ##    TripoSG Parameters Explained
+## ################################################
+
+# Parameters:
+
+## Steps (default: 50) 
+
+  Number of denoising iterations in the diffusion process. TripoSG is a diffusion model — it starts with random noise and           
+  iteratively refines it into a 3D shape.                                                                                           
+
+  - Lower (20-30): Faster, but rougher/noisier output                                                                               
+  - Higher (50-100): More refined details, diminishing returns past ~75                                                             
+  - Sweet spot: 50 is a good balance 
+
+
+## Guidance (default: 7.0)
+
+  Classifier-free guidance scale. Controls how strongly the model follows the input image vs. its learned priors.                   
+
+  - Low (1-3): More "creative" — model may deviate from the image, smoother but less accurate                                       
+  - Medium (5-8): Balanced — faithful to image while still coherent                                                                 
+  - High (10-20): Strictly follows image — can amplify artifacts, oversaturated details, or cause instability                       
+
+  Think of it as a "literalness" dial. Too low = generic blob. Too high = noisy mess.                                               
+
+
+## Seed (default: 42) 
+
+  Random number generator seed. Determines the initial noise pattern.                                                               
+
+  - Same seed + same inputs = identical output (reproducibility)                                                                    
+  - Different seeds = different variations of the same subject                                                                      
+  - Useful for generating multiple versions and picking the best                                                                    
+
+
+## Max Faces (default: -1)                                                                                                           
+                                                                                                                                    
+  Post-processing mesh simplification. Uses quadric edge collapse decimation (PyMeshLab).                                           
+
+  - -1: No simplification, keep original mesh (~100k-500k faces typically)                                                          
+  - Positive integer: Reduce to that many faces                                                                                     
+  ┌───────────┬──────────────────────────────┐                                                                                      
+  │ Max faces │           Use case           │                                                                                      
+  ├───────────┼──────────────────────────────┤                                                                                      
+  │ -1        │ Maximum detail, large file   │                                                                                      
+  ├───────────┼──────────────────────────────┤                                                                                      
+  │ 100000    │ Good detail, reasonable size │                                                                                      
+  ├───────────┼──────────────────────────────┤                                                                                      
+  │ 50000     │ Web/game assets              │                                                                                      
+  ├───────────┼──────────────────────────────┤                                                                                      
+  │ 10000     │ Low-poly, fast slicing       │                                                                                      
+  └───────────┴──────────────────────────────┘                                                                                      
+
+## ################################################
+## ################################################
+
+solidify_mesh() Parameters Explained
+
+The problem: TripoSG outputs a surface mesh (vertices + faces defining a shell with zero thickness). Slicers need a "watertight solid" — a closed volume with inside/outside defined.
+
+  The algorithm
+
+  voxel = mesh.voxelized(pitch=0.01)   # Step 1: voxelization
+  voxel = voxel.fill()                 # Step 2: fill interior
+  solid = voxel.marching_cubes         # Step 3: reconstruct surface
+
+  Step 1 — Voxelization: Convert the mesh to a 3D grid of binary voxels. pitch=0.01 means each voxel is 0.01 units on a side. Since TripoSG meshes are normalized roughly -1 to 1 (diameter ~2 units), this gives ~200 voxels across.
+
+  Step 2 — Fill: Flood-fill the interior. Now you have a solid block of voxels, not just a shell.
+
+  Step 3 — Marching cubes: Walk through the voxel grid with 2×2×2 cubes, generating triangles at the boundary between filled/empty voxels. This reconstructs a watertight surface.
+
+  Tuning pitch
+  ┌───────┬───────────────┬─────────┬───────────┐
+  │ pitch │ voxels across │ quality │   speed   │
+  ├───────┼───────────────┼─────────┼───────────┤
+  │ 0.02  │ ~100          │ blocky  │ fast      │
+  ├───────┼───────────────┼─────────┼───────────┤
+  │ 0.01  │ ~200          │ decent  │ medium    │
+  ├───────┼───────────────┼─────────┼───────────┤
+  │ 0.005 │ ~400          │ smooth  │ slow      │
+  ├───────┼───────────────┼─────────┼───────────┤
+  │ 0.002 │ ~1000         │ high    │ very slow │
+  └───────┴───────────────┴─────────┴───────────┘                                                                                   
+  Trade-off: Smaller pitch = more detail preserved but O(n³) memory/time.
+
+
+## ################################################
+## ################################################
+
