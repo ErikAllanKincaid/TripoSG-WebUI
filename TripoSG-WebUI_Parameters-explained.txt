@@ -6,8 +6,8 @@
 
 ## Steps (default: 50) 
 
-  Number of denoising iterations in the diffusion process. TripoSG is a diffusion model — it starts with random noise and           
-  iteratively refines it into a 3D shape.                                                                                           
+  Number of denoising iterations in the diffusion process.
+  TripoSG is a diffusion model — it starts with random noise and iteratively refines it into a 3D shape.
 
   - Lower (20-30): Faster, but rougher/noisier output                                                                               
   - Higher (50-100): More refined details, diminishing returns past ~75                                                             
@@ -16,7 +16,8 @@
 
 ## Guidance (default: 7.0)
 
-  Classifier-free guidance scale. Controls how strongly the model follows the input image vs. its learned priors.                   
+  Classifier-free guidance scale.
+  Controls how strongly the model follows the input image vs. its learned priors.
 
   - Low (1-3): More "creative" — model may deviate from the image, smoother but less accurate                                       
   - Medium (5-8): Balanced — faithful to image while still coherent                                                                 
@@ -36,7 +37,8 @@
 
 ## Max Faces (default: -1)                                                                                                           
                                                                                                                                     
-  Post-processing mesh simplification. Uses quadric edge collapse decimation (PyMeshLab).                                           
+  Post-processing mesh simplification.
+  Uses quadric edge collapse decimation (PyMeshLab).
 
   - -1: No simplification, keep original mesh (~100k-500k faces typically)                                                          
   - Positive integer: Reduce to that many faces                                                                                     
@@ -57,7 +59,8 @@
 
 solidify_mesh() Parameters Explained
 
-The problem: TripoSG outputs a surface mesh (vertices + faces defining a shell with zero thickness). Slicers need a "watertight solid" — a closed volume with inside/outside defined.
+The problem: TripoSG outputs a surface mesh (vertices + faces defining a shell with zero thickness).
+Slicers need a "watertight solid" — a closed volume with inside/outside defined.
 
   The algorithm
 

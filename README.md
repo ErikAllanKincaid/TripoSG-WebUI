@@ -40,7 +40,9 @@ uv pip install -r requirements.txt
 ### Screenshot
 ![Screenshot_WebUI](Screenshot_WebUI.png)
 
-
+####
+parameters
+Check out the [parameters](TripoSG-WebUI_Parameters-explained.txt)
 
 ## Make a service
 `sudo cp triposg-webui.service /etc/systemd/system/` 
