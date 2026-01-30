@@ -170,21 +170,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
       Drop an image here or click to upload
     </div>
     <input type="file" id="file-input" accept="image/*">
-    <div class="params">
-      <div><label>Steps</label><br><input type="number" id="steps" value="50" min="1" max="200"></div>
-      <div><label>Guidance</label><br><input type="number" id="guidance" value="7.0" step="0.5" min="1"></div>
-      <div><label>Seed</label><br><input type="number" id="seed" value="42"></div>
-      <div><label>Max faces</label><br><input type="number" id="faces" value="-1" min="-1"></div>
-      <div style="display:flex;align-items:flex-end"><a href="/assets/TripoSG-WebUI_Parameters-explained.txt" target="_blank" style="color:#a0c4ff;font-size:.85rem">Parameter Help</a></div>
+    <div class="advanced-toggle" onclick="toggleSection('gen-section', 'gen-arrow')"><span id="gen-arrow">&#9654;</span> Generation Options</div>
+    <div class="advanced-section" id="gen-section">
+      <div class="params">
+        <div><label>Steps</label><br><input type="number" id="steps" value="50" min="1" max="200"></div>
+        <div><label>Guidance</label><br><input type="number" id="guidance" value="7.0" step="0.5" min="1"></div>
+        <div><label>Seed</label><br><input type="number" id="seed" value="42"></div>
+        <div><label>Max faces</label><br><input type="number" id="faces" value="-1" min="-1"></div>
+      </div>
     </div>
-    <div class="advanced-toggle" onclick="toggleAdvanced()"><span id="adv-arrow">&#9654;</span> Solidify Options (STL)</div>
-    <div class="advanced-section" id="advanced-section">
+    <div class="advanced-toggle" onclick="toggleSection('solidify-section', 'solidify-arrow')"><span id="solidify-arrow">&#9654;</span> Solidify Options (STL)</div>
+    <div class="advanced-section" id="solidify-section">
       <div class="params">
         <div><label><input type="checkbox" id="solidify-enabled" checked>Enabled</label></div>
         <div><label>Pitch</label><br><input type="number" id="solidify-pitch" value="0.01" step="0.001" min="0.002" max="0.05"></div>
         <div><label>Smooth</label><br><input type="number" id="solidify-smooth" value="0" min="0" max="10"></div>
       </div>
     </div>
+    <div style="margin-top:.8rem"><a href="/assets/TripoSG-WebUI_Parameters-explained.txt" target="_blank" style="color:#a0c4ff;font-size:.85rem">Parameter Help</a></div>
     <button id="gen-btn" disabled onclick="generate()">Generate 3D Model</button>
     <div id="status"></div>
     <div class="downloads" id="downloads"></div>
@@ -286,13 +289,13 @@ function showPreview(file){
 
 fileInput.addEventListener('change', e => {if(e.target.files[0]) showPreview(e.target.files[0])});
 
-function toggleAdvanced(){
-  const section = document.getElementById('advanced-section');
-  const arrow = document.getElementById('adv-arrow');
+function toggleSection(sectionId, arrowId){
+  const section = document.getElementById(sectionId);
+  const arrow = document.getElementById(arrowId);
   section.classList.toggle('open');
   arrow.innerHTML = section.classList.contains('open') ? '&#9660;' : '&#9654;';
 }
-window.toggleAdvanced = toggleAdvanced;
+window.toggleSection = toggleSection;
 dropZone.addEventListener('dragover', e => {e.preventDefault(); dropZone.classList.add('dragover')});
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
