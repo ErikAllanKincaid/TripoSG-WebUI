@@ -107,20 +107,34 @@ docker compose up -d
 
 Generated meshes are saved to `./outputs` by default. Override with `TRIPOSG_OUTPUTS`.
 
-### Build Notes
-
-The `diso` package (GPU marching cubes) requires `--no-build-isolation` so it can find torch's CUDA headers during compilation. This is handled automatically in the Dockerfile. If building locally, use:
-```bash
-uv pip install --no-build-isolation diso
-```
-
-### Manual Docker
+### Build and Run (manual)
 ```bash
 docker build -t triposg-webui .
 docker run --gpus all -p 5000:5000 \
   -v /path/to/pretrained_weights:/app/pretrained_weights \
   -v /path/to/outputs:/app/outputs \
+  --name triposg-webui \
   triposg-webui
+# Access at http://localhost:5000
+```
+
+Stop and remove:
+```bash
+docker stop triposg-webui && docker rm triposg-webui
+```
+
+### Build Notes
+
+The Dockerfile uses the `-devel` base image (not `-runtime`) because `diso` compiles CUDA extensions at install time. The following env vars are set in the Dockerfile to make this work:
+
+- `FORCE_CUDA=1` - diso's setup.py skips `.cu` files when no GPU is detected at build time. This overrides that check.
+- `CUDA_HOME=/usr/local/cuda` - tells torch's build system where nvcc lives.
+- `CPLUS_INCLUDE_PATH` - tells g++ where to find `cuda_runtime.h`.
+- `TORCH_CUDA_ARCH_LIST="7.0 8.0 8.6 8.9 9.0"` - compiles for Titan V, A100, RTX 3090, RTX 4090, H100.
+
+If building locally (without Docker), use:
+```bash
+uv pip install --no-build-isolation diso
 ```
 
 ### Kubernetes
