@@ -107,6 +107,13 @@ docker compose up -d
 
 Generated meshes are saved to `./outputs` by default. Override with `TRIPOSG_OUTPUTS`.
 
+### Build Notes
+
+The `diso` package (GPU marching cubes) requires `--no-build-isolation` so it can find torch's CUDA headers during compilation. This is handled automatically in the Dockerfile. If building locally, use:
+```bash
+uv pip install --no-build-isolation diso
+```
+
 ### Manual Docker
 ```bash
 docker build -t triposg-webui .
