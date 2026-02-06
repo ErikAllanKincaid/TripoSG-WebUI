@@ -60,6 +60,74 @@ Check out the [parameters](TripoSG-WebUI_Parameters-explained.txt)
 If the service fails to start, use journalctl to view the logs and identify the error: 
 `sudo journalctl -u webui.service -f`
 
+## Docker
+
+Run TripoSG-WebUI in a container with GPU support. Requires `nvidia-container-toolkit` on the host.
+
+### Model Weights (~30GB)
+
+The container expects model weights at `/app/pretrained_weights`. These are bind-mounted from your host machine so you can pre-download them or share them across containers.
+
+**Option A: Pre-download on host (recommended)**
+
+If you already have TripoSG running locally, you already have the weights. Point Docker at them:
+```bash
+TRIPOSG_WEIGHTS=/home/user/code/TripoSG/pretrained_weights docker compose up -d
+```
+
+To download weights without running TripoSG locally:
+```bash
+pip install huggingface_hub
+huggingface-cli download VAST-AI/TripoSG --local-dir ./pretrained_weights
+```
+
+**Option B: Let the container download on first run**
+
+If no weights are found at the mount path, the app downloads them automatically on startup. This takes a while on first run:
+```bash
+mkdir -p pretrained_weights
+docker compose up -d
+```
+
+### Quick Start (docker compose)
+```bash
+docker compose up -d
+# Access at http://localhost:5000
+```
+
+By default, weights are expected at `./pretrained_weights` relative to the compose file. Override with the `TRIPOSG_WEIGHTS` environment variable:
+```bash
+# Point to an existing weights directory
+TRIPOSG_WEIGHTS=/path/to/pretrained_weights docker compose up -d
+
+# Or set it in a .env file next to docker-compose.yml
+echo "TRIPOSG_WEIGHTS=/home/user/code/TripoSG/pretrained_weights" > .env
+docker compose up -d
+```
+
+Generated meshes are saved to `./outputs` by default. Override with `TRIPOSG_OUTPUTS`.
+
+### Manual Docker
+```bash
+docker build -t triposg-webui .
+docker run --gpus all -p 5000:5000 \
+  -v /path/to/pretrained_weights:/app/pretrained_weights \
+  -v /path/to/outputs:/app/outputs \
+  triposg-webui
+```
+
+### Kubernetes
+```bash
+# Push image to your registry first
+kubectl apply -f k8s-deployment.yaml
+```
+
+The k8s manifest includes:
+- PersistentVolumeClaim for model weights (50Gi)
+- GPU resource request (nvidia.com/gpu: 1)
+- Liveness/readiness probes
+- ClusterIP Service on port 80
+
 ## Problems TODO
 - ~~The model produces a 3D mesh that is a 3D shape, but the polygon shape sides have no dimension, so when put in a slicer for printing it can not slice.~~ FIXED.
 	- ~~The solution is to use Blender to create dimension, but this defeats the purpose of low barrier of entry.~~ FIXED.

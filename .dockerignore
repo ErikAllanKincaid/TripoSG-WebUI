@@ -1,0 +1,20 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Dev files
+*.md
+*.service
+Screenshot_WebUI.png
+
+# Outputs (generated at runtime)
+outputs/
+
+# Model weights (downloaded at runtime)
+pretrained_weights/

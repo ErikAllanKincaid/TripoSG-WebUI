@@ -1,0 +1,81 @@
+# TripoSG-WebUI Kubernetes Deployment
+#
+# Prerequisites:
+# - NVIDIA GPU Operator or device plugin installed
+# - Container image pushed to a registry
+#
+# Deploy:
+#   kubectl apply -f k8s-deployment.yaml
+#
+# Note: First pod startup downloads ~30GB of model weights.
+# The PVC persists weights across pod restarts.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: triposg-weights
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi  # Model weights ~30GB + buffer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triposg-webui
+  labels:
+    app: triposg-webui
+spec:
+  replicas: 1  # GPU workload, single replica
+  selector:
+    matchLabels:
+      app: triposg-webui
+  template:
+    metadata:
+      labels:
+        app: triposg-webui
+    spec:
+      containers:
+        - name: triposg-webui
+          image: triposg-webui:latest  # Replace with your registry
+          ports:
+            - containerPort: 5000
+          resources:
+            limits:
+              nvidia.com/gpu: 1  # Request 1 GPU
+            requests:
+              memory: "8Gi"
+              cpu: "2"
+          volumeMounts:
+            - name: weights
+              mountPath: /app/pretrained_weights
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+      volumes:
+        - name: weights
+          persistentVolumeClaim:
+            claimName: triposg-weights
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triposg-webui
+spec:
+  selector:
+    app: triposg-webui
+  ports:
+    - port: 80
+      targetPort: 5000
+  type: ClusterIP  # Use LoadBalancer or Ingress for external access

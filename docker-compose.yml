@@ -1,0 +1,41 @@
+# TripoSG-WebUI Docker Compose
+#
+# Start: docker compose up -d
+# Logs:  docker compose logs -f
+# Stop:  docker compose down
+#
+# Requires: nvidia-container-toolkit installed on host
+#
+# Model weights (~30GB) are bind-mounted from the host.
+# Set TRIPOSG_WEIGHTS to your weights directory:
+#   TRIPOSG_WEIGHTS=/path/to/pretrained_weights docker compose up -d
+#
+# Default: ./pretrained_weights (relative to this file)
+
+services:
+  triposg-webui:
+    build: .
+    image: triposg-webui:latest
+    container_name: triposg-webui
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Bind mount model weights from host
+      # Override with: TRIPOSG_WEIGHTS=/your/path docker compose up -d
+      - ${TRIPOSG_WEIGHTS:-./pretrained_weights}:/app/pretrained_weights
+      # Optional: persist generated meshes on host
+      - ${TRIPOSG_OUTPUTS:-./outputs}:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
