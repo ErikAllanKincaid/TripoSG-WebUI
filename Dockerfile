@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     g++ \
     libgl1-mesa-glx \
+    libopengl0 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
