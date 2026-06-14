@@ -41,7 +41,7 @@ spec:
         - name: triposg-webui
           image: triposg-webui:latest  # Replace with your registry
           ports:
-            - containerPort: 5000
+            - containerPort: 7865
           resources:
             limits:
               nvidia.com/gpu: 1  # Request 1 GPU
@@ -54,13 +54,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 5000
+              port: 7865
             initialDelaySeconds: 120
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /
-              port: 5000
+              port: 7865
             initialDelaySeconds: 60
             periodSeconds: 10
       volumes:
@@ -77,5 +77,5 @@ spec:
     app: triposg-webui
   ports:
     - port: 80
-      targetPort: 5000
+      targetPort: 7865
   type: ClusterIP  # Use LoadBalancer or Ingress for external access

@@ -2,7 +2,7 @@
 # GPU-accelerated Image-to-3D mesh generation
 #
 # Build: docker build -t triposg-webui .
-# Run:   docker run --gpus all -p 5000:5000 -v triposg-weights:/app/pretrained_weights triposg-webui
+# Run:   docker run --gpus all -p 7865:7865 -v triposg-weights:/app/pretrained_weights triposg-webui
 
 # devel image required: diso compiles CUDA extensions and needs nvcc + cuda_runtime.h
 FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
@@ -59,7 +59,7 @@ RUN mkdir -p /app/outputs
 # Mount a volume here to persist across container restarts
 VOLUME /app/pretrained_weights
 
-EXPOSE 5000
+EXPOSE 7865
 
 # Run Flask app (single worker, GPU workload is sequential anyway)
 CMD ["python", "app.py"]
