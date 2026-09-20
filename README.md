@@ -1,17 +1,20 @@
 # TripoSG-WebUI
+
 ### Enhancement to https://github.com/VAST-AI-Research/TripoSG to add a WebUI.
 
 Bring down the barrier of entry into 3D printing without having to learn Blender or CAD.
 
-
 ## TLDR
+
 Clone TripoSG.
 Clone this repo to get the python script for the WebUI.
 `cp app.py pyproject.toml requirements.txt ~/code/TripoSG/`
 Get it running in commandline, then run `uv run python app.py` to start the WebUI.
 
 ## Get TripoSG running
+
 ### TripoSG: High-Fidelity 3D Shape Synthesis using Large-Scale Rectified Flow Models
+
 ```bash
 mkdir -p ~/code && cd ~/code
 git clone https://github.com/VAST-AI-Research/TripoSG.git
@@ -26,12 +29,17 @@ uv pip install --no-build-isolation diso
 uv add -r requirements.txt
 uv pip install numpy
 ```
+
 ### Add an image to try.
+
 Copy an image into the TripoSG directory:
+
 ```bash
 cp /path/to/image.jpg ~/code/TripoSG/
 ```
+
 ### Run the generation model.
+
 ```bash
 cd ~/code/TripoSG
 IMAGE=image.jpg
@@ -39,29 +47,54 @@ uv run python -m scripts.inference_triposg --image-input "$(pwd)/$IMAGE"
 ```
 
 ### Start the WebUI
+
 ```bash
 cd ~/code/TripoSG && uv run python app.py
 ```
 
 ### Screenshot
+
 ![Screenshot_WebUI](Screenshot_WebUI.png)
 
-####
-parameters
-Check out the [parameters](TripoSG-WebUI_Parameters-explained.txt)
+#### 
+
+## Parameters
+
+Check out the [parameters](assets/TripoSG-WebUI_Parameters-explained.txt)
+
+### Output viewer options
+
+**Studio** - Key/fill/rim lighting — reads shape and depth (default)
+**Matcap** - Clay-style studio reflection, great for spotting bumps and dents
+**Normals** - Rainbow surface map — reveals lumps, pinched geometry, non-manifold spots
+**Original** - Whatever the GLB itself contains (vertex colors/textures, if any)
+**Wireframe checkbox** — overlays a dark wireframe on the model to inspect topology without hiding the surface. 
+It also preserves any original GLB materials/vertex colors (used when "Original" is picked) and computes normals for the generated mesh if missing
 
 ## Make a service
+
 #### Copy service file to the service directory.
+
 `sudo cp triposg-webui.service /etc/systemd/system/`
+
 #### Reload systemd: Notify the service manager of the new file.
+
 `sudo systemctl daemon-reload`
+
 #### Start the service: Manually start the service for the first time.
+
 `sudo systemctl start webui.service`
+
 #### Check the service status: Verify that it is running correctly.
+
 `sudo systemctl status webui.service`
+
 #### Enable the service (optional): Configure the service to start automatically every time your system boots.
+
 `sudo systemctl enable webui.service`
+
 ### Troubleshooting
+
 If the service fails to start, use journalctl to view the logs and identify the error: 
 `sudo journalctl -u webui.service -f`
 
@@ -76,30 +109,38 @@ The container expects model weights at `/app/pretrained_weights`. These are bind
 **Option A: Pre-download on host (recommended)**
 
 If you already have TripoSG running locally, you already have the weights. Point Docker at them:
+
 ```bash
 TRIPOSG_WEIGHTS=/home/user/code/TripoSG/pretrained_weights docker compose up -d
 ```
 
 To download weights without running TripoSG locally:
+
 ```bash
-uvx --from huggingface_hub hf download VAST-AI/TripoSG --local-dir ./pretrained_weights
+## Weights go to ./pretrained_weights
+## which is what .env points TRIPOSG_WEIGHTS at.
+uvx --from huggingface_hub hf download VAST-AI/TripoSG --local-dir ./pretrained_weights/TripoSG
+uvx --from huggingface_hub hf download briaai/RMBG-1.4 --local-dir ./pretrained_weights/RMBG-1.4
 ```
 
 **Option B: Let the container download on first run**
 
 If no weights are found at the mount path, the app downloads them automatically on startup. This takes a while on first run:
+
 ```bash
 mkdir -p pretrained_weights
 docker compose up -d
 ```
 
 ### Quick Start (docker compose)
+
 ```bash
 docker compose up -d
 # Access at http://localhost:7865
 ```
 
 By default, weights are expected at `./pretrained_weights` relative to the compose file. Override with the `TRIPOSG_WEIGHTS` environment variable:
+
 ```bash
 # Point to an existing weights directory
 TRIPOSG_WEIGHTS=/path/to/pretrained_weights docker compose up -d
@@ -112,6 +153,7 @@ docker compose up -d
 Generated meshes are saved to `./outputs` by default. Override with `TRIPOSG_OUTPUTS`.
 
 ### Build and Run (manual)
+
 ```bash
 docker build -t triposg-webui .
 docker run --gpus all -p 7865:7865 \
@@ -123,6 +165,7 @@ docker run --gpus all -p 7865:7865 \
 ```
 
 Stop and remove:
+
 ```bash
 docker stop triposg-webui && docker rm triposg-webui
 ```
@@ -137,23 +180,27 @@ The Dockerfile uses the `-devel` base image (not `-runtime`) because `diso` comp
 - `TORCH_CUDA_ARCH_LIST="7.0 8.0 8.6 8.9 9.0"` - compiles for Titan V, A100, RTX 3090, RTX 4090, H100.
 
 If building locally (without Docker), use:
+
 ```bash
 uv pip install --no-build-isolation diso
 ```
 
 ### Kubernetes
+
 ```bash
 # Push image to your registry first
 kubectl apply -f k8s-deployment.yaml
 ```
 
 The k8s manifest includes:
+
 - PersistentVolumeClaim for model weights (50Gi)
 - GPU resource request (nvidia.com/gpu: 1)
 - Liveness/readiness probes
 - ClusterIP Service on port 80
 
 ## Problems TODO
+
 - ~~The model produces a 3D mesh that is a 3D shape, but the polygon shape sides have no dimension, so when put in a slicer for printing it can not slice.~~ FIXED.
-	- ~~The solution is to use Blender to create dimension, but this defeats the purpose of low barrier of entry.~~ FIXED.
+  - ~~The solution is to use Blender to create dimension, but this defeats the purpose of low barrier of entry.~~ FIXED.
 - ~~The GPU does not release all the RAM once the model has run.~~ FIXED.

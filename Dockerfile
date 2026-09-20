@@ -49,8 +49,7 @@ RUN pip install --no-cache-dir flask \
 
 # Copy WebUI app and assets
 COPY app.py .
-COPY 3d-printing-logo.png eak.png ./
-COPY TripoSG-WebUI_Parameters-explained.txt ./
+COPY assets/ ./assets/
 
 # Outputs directory for generated meshes
 RUN mkdir -p /app/outputs

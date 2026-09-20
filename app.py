@@ -122,6 +122,7 @@ HTML = """
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TripoSG — Image to 3D</title>
+<link rel="icon" href="/assets/favicon.ico">
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
@@ -146,6 +147,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .downloads{margin-top:1rem;display:flex;gap:1rem}
 .downloads a{color:#a0c4ff;text-decoration:none;padding:.4rem .8rem;border:1px solid #a0c4ff;border-radius:4px;transition:background .2s}
 .downloads a:hover{background:#0f3460}
+.viewer-controls{display:flex;gap:1.2rem;align-items:center;margin-top:.8rem;flex-wrap:wrap}
+.viewer-controls label{font-size:.85rem;color:#aaa;display:flex;align-items:center;gap:.4rem}
+.viewer-controls select{padding:.35rem .5rem;border-radius:4px;border:1px solid #333;background:#0a0a1a;color:#fff;cursor:pointer}
+.viewer-controls input[type="checkbox"]{cursor:pointer}
 .params{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.8rem}
 .params label{font-size:.85rem;color:#aaa}
 .params input{width:80px;padding:.3rem;border-radius:4px;border:1px solid #333;background:#0a0a1a;color:#fff}
@@ -195,6 +200,18 @@ button:disabled{opacity:.5;cursor:not-allowed}
   <div class="panel">
     <h2>3D Viewer</h2>
     <div id="viewer"></div>
+    <div class="viewer-controls">
+      <label>Shading
+        <select id="shading-mode">
+          <option value="studio" selected>Studio</option>
+          <option value="matcap">Matcap</option>
+          <option value="normals">Normals</option>
+          <option value="grey">Flat Grey</option>
+          <option value="original">Original</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="wireframe-toggle"> Wireframe</label>
+    </div>
   </div>
 </div>
 
@@ -202,9 +219,75 @@ button:disabled{opacity:.5;cursor:not-allowed}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 
 let scene, camera, renderer, controls, currentModel;
 const viewer = document.getElementById('viewer');
+const savedMaterials = new Map();
+
+// Shared materials for the shading modes
+const STUDIO_MAT = new THREE.MeshStandardMaterial({color:0x8899aa, roughness:0.45, metalness:0.05, side:THREE.DoubleSide});
+const GREY_MAT = new THREE.MeshStandardMaterial({color:0x8899aa, roughness:0.5, metalness:0.1, side:THREE.DoubleSide});
+const STUDIO_VCOLOR_MAT = new THREE.MeshStandardMaterial({vertexColors:true, roughness:0.45, metalness:0.05, side:THREE.DoubleSide});
+const NORMALS_MAT = new THREE.MeshNormalMaterial({toneMapped:false, side:THREE.DoubleSide});
+const WIREFRAME_MAT = new THREE.LineBasicMaterial({color:0x111111, transparent:true, opacity:0.45});
+
+// Procedural clay-style matcap texture (no external asset needed)
+function makeMatcapTexture(){
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const base = ctx.createRadialGradient(size*0.35, size*0.30, size*0.05, size*0.5, size*0.5, size*0.72);
+  base.addColorStop(0, '#ffffff');
+  base.addColorStop(0.35, '#c9cdd5');
+  base.addColorStop(0.75, '#5a6068');
+  base.addColorStop(1, '#1e222a');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  const gloss = ctx.createRadialGradient(size*0.70, size*0.24, 2, size*0.70, size*0.24, size*0.28);
+  gloss.addColorStop(0, 'rgba(255,255,255,0.85)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gloss;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const MATCAP_MAT = new THREE.MeshMatcapMaterial({matcap: makeMatcapTexture(), toneMapped:false, side:THREE.DoubleSide});
+
+function eachMesh(cb){
+  if(!currentModel) return;
+  const meshes = [];
+  currentModel.traverse(c=>{ if(c.isMesh) meshes.push(c); });
+  meshes.forEach(cb);
+}
+
+function applyShading(mode){
+  eachMesh(c=>{
+    if(!savedMaterials.has(c.uuid)) savedMaterials.set(c.uuid, c.material);
+    const orig = savedMaterials.get(c.uuid);
+    if(mode === 'normals'){ c.material = NORMALS_MAT; }
+    else if(mode === 'matcap'){ c.material = MATCAP_MAT; }
+    else if(mode === 'grey'){ c.material = GREY_MAT; }
+    else if(mode === 'original'){ c.material = orig; }
+    else { c.material = c.geometry.attributes.color ? STUDIO_VCOLOR_MAT : STUDIO_MAT; }
+  });
+}
+
+function setWireframe(on){
+  eachMesh(c=>{
+    const existing = c.children.filter(ch=>ch.userData.isWireframe);
+    if(on && existing.length === 0){
+      const wf = new THREE.LineSegments(new THREE.WireframeGeometry(c.geometry), WIREFRAME_MAT);
+      wf.userData.isWireframe = true;
+      wf.scale.setScalar(1.001); // slight offset avoids z-fighting with the surface
+      c.add(wf);
+    } else if(!on){
+      existing.forEach(ch=>{ c.remove(ch); ch.geometry.dispose(); });
+    }
+  });
+}
 
 function init(){
   scene = new THREE.Scene();
@@ -213,23 +296,34 @@ function init(){
   renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(viewer.clientWidth, viewer.clientHeight);
   renderer.setClearColor(0x0a0a1a);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
   viewer.appendChild(renderer.domElement);
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  const amb = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(amb);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-  dir.position.set(2, 4, 3);
-  scene.add(dir);
-  const dir2 = new THREE.DirectionalLight(0xffffff, 0.4);
-  dir2.position.set(-2, -1, -2);
-  scene.add(dir2);
+  // Studio lighting rig: key, fill and rim light so surface details read clearly
+  const key = new THREE.DirectionalLight(0xffffff, 1.6);
+  key.position.set(2, 4, 3);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+  fill.position.set(-3, 1, 2);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 1.0);
+  rim.position.set(-1, 2, -3);
+  scene.add(rim);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  // Soft image-based lighting for a more natural material response
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
   animate();
   window.addEventListener('resize', ()=>{
     camera.aspect = viewer.clientWidth/viewer.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(viewer.clientWidth, viewer.clientHeight);
   });
+  document.getElementById('shading-mode').addEventListener('change', e => applyShading(e.target.value));
+  document.getElementById('wireframe-toggle').addEventListener('change', e => setWireframe(e.target.checked));
 }
 
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}
@@ -241,6 +335,7 @@ window.loadGLB = function(url){
     gltf=>{
       console.log('GLB loaded successfully');
       currentModel = gltf.scene;
+      savedMaterials.clear();
       const box = new THREE.Box3().setFromObject(currentModel);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3()).length();
@@ -250,11 +345,14 @@ window.loadGLB = function(url){
       currentModel.scale.setScalar(scale);
       currentModel.traverse(c=>{
         if(c.isMesh){
-          c.material = new THREE.MeshStandardMaterial({color:0x8899aa, roughness:0.5, metalness:0.1});
+          savedMaterials.set(c.uuid, c.material);
+          if(!c.geometry.attributes.normal) c.geometry.computeVertexNormals();
           c.material.side = THREE.DoubleSide;
         }
       });
       scene.add(currentModel);
+      applyShading(document.getElementById('shading-mode').value);
+      setWireframe(document.getElementById('wireframe-toggle').checked);
       camera.position.set(0, 1, 3);
       controls.reset();
     },
@@ -401,7 +499,7 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @app.route("/assets/<path:filename>")
 def serve_assets(filename):
-    return send_from_directory(APP_DIR, filename)
+    return send_from_directory(os.path.join(APP_DIR, "assets"), filename)
 
 
 if __name__ == "__main__":
